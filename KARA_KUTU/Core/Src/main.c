@@ -39,18 +39,31 @@
 
 #define WHO_AM_I		(0x0F)
 #define CTRL_REG1		(0x21)
+#define CTRL_REG2		(0x22)
 #define CTRL_REG3		(0x23)
 #define CTRL_REG4		(0x20)
 #define CTRL_REG5		(0x24)
 #define CTRL_REG6		(0x25)
 #define TIM1_1L			(0x55)
+#define TIM1_1H			(0x54)
+#define TIM1_2H			(0x74)
+#define TIM1_2L			(0x75)
 #define THRS2_1			(0x56)
+#define THRS1_1			(0x57)
+#define THRS2_2			(0x76)
+#define THRS1_2			(0x77)
 #define MASK1_B			(0x59)
+#define MASK2_B			(0x79)
 #define MASK1_A			(0x5A)
+#define MASK2_A			(0x7A)
 #define SETT1			(0x5B)
+#define SETT2			(0x7B)
 #define ST1_1			(0x40)
 #define ST1_2			(0x41)
 #define ST1_3			(0x42)
+#define ST2_1			(0x60)
+#define ST2_2			(0x61)
+#define ST2_3			(0x62)
 #define x_address		(0x29)
 #define y_address		(0x2B)
 #define z_address		(0x2D)
@@ -63,7 +76,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
+ I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
 
@@ -105,15 +118,17 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_SPI2_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_RTC_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 
 void lis_init(void);
 void WriteSpi(uint8_t addres, uint8_t data);
 uint8_t ReadSpi(uint8_t addres);
 void Read_all(void);
+uint8_t lis_convert_time(float miliseconds);
+uint8_t lis_convert_threshold(float miliG);
 
 /* USER CODE END PFP */
 
@@ -139,6 +154,8 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
+  __HAL_SPI_ENABLE(&hspi1); // Enable spi 1.
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -152,19 +169,16 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_SPI1_Init();
-  MX_SPI2_Init();
   MX_TIM2_Init();
   MX_FATFS_Init();
   MX_RTC_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
   lis_init();
-
   HAL_TIM_Base_Start_IT(&htim2);
   BMP180_Start();
-
   HAL_Delay(40);
-
 
 
 
@@ -219,7 +233,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  //timer_count = TIM2->CNT;
+	  timer_count = TIM2->CNT;
 
 	  if(flag_control == 1 && timer_flag == 1)
 	  {
@@ -231,7 +245,7 @@ int main(void)
 	  }
 	  else
 	  {
-		  if(count_interrupt == 1)
+		  if(count_interrupt == 5)
 		  {
 			  Read_all();
 			  count_interrupt = 0;
@@ -345,7 +359,7 @@ static void MX_RTC_Init(void)
   hrtc.Instance = RTC;
   hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
   hrtc.Init.AsynchPrediv = 127;
-  hrtc.Init.SynchPrediv = 249;
+  hrtc.Init.SynchPrediv = 255;
   hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
   hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
   hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
@@ -360,9 +374,9 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-  sTime.Hours = 0x22;
-  sTime.Minutes = 0x02;
-  sTime.Seconds = 0x00;
+  sTime.Hours = 0x12;
+  sTime.Minutes = 0x16;
+  sTime.Seconds = 0x0;
   sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   sTime.StoreOperation = RTC_STOREOPERATION_RESET;
   if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
@@ -371,7 +385,7 @@ static void MX_RTC_Init(void)
   }
   sDate.WeekDay = RTC_WEEKDAY_FRIDAY;
   sDate.Month = RTC_MONTH_MAY;
-  sDate.Date = 0x16;
+  sDate.Date = 0x05;
   sDate.Year = 0x23;
 
   if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
@@ -407,7 +421,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
   hspi1.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -442,10 +456,10 @@ static void MX_SPI2_Init(void)
   hspi2.Init.Mode = SPI_MODE_MASTER;
   hspi2.Init.Direction = SPI_DIRECTION_2LINES;
   hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi2.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -540,7 +554,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(sd_cs_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PE0 */
+  /*Configure GPIO pins : PE0 PE1 */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -549,6 +563,7 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
 
 }
 
@@ -589,74 +604,47 @@ void TIM2_IRQHandler(void)
 void lis_init(void)
 {
 
-	ReadSpi(WHO_AM_I);
-
-	// free-fall
-	WriteSpi(CTRL_REG3, 0x48);
-	WriteSpi(CTRL_REG4, 0x77);
-	WriteSpi(TIM1_1L, 0x28);
-	WriteSpi(THRS2_1, 0x18);
-	WriteSpi(MASK1_B, 0xA8);
-	WriteSpi(MASK1_A, 0xA8);
-	WriteSpi(SETT1, 0x03);
-	WriteSpi(ST1_1, 0x0A);
-	WriteSpi(ST1_2, 0x61);
-	WriteSpi(ST1_3, 0x11);
-	WriteSpi(CTRL_REG1, 0x01);
-	HAL_Delay(100);
+	if(ReadSpi(WHO_AM_I) == 0x3F)
+	{
+		ReadSpi(0x5F);		// interrupt sıfırlama
+	}
 
 
-	// free-fall
-	/*WriteSpi(CTRL_REG3, 0x48);
-	WriteSpi(CTRL_REG4, 0x77); //7F
-	WriteSpi(TIM1_1L, 0x28);
-	WriteSpi(THRS2_1, 0x18);
-	WriteSpi(MASK1_B, 0xA8);
-	WriteSpi(MASK1_A, 0xA8);   //A8
-	WriteSpi(SETT1, 0x03);
-	WriteSpi(ST1_1, 0x0A);    //0A
-	WriteSpi(ST1_2, 0x61);    //61
-	WriteSpi(ST1_3, 0x11);
-	WriteSpi(CTRL_REG1, 0x01);
-	//WriteSpi(CTRL_REG5, 0x00);
-	HAL_Delay(50);*/
+	HAL_Delay(50);
+	if(ReadSpi(WHO_AM_I) == 0x3F)
+	{
+		//FREE-FALL CONFIG
+		WriteSpi(CTRL_REG4, 0x77);
+		WriteSpi(CTRL_REG3, 0x78);							//48
+		WriteSpi(TIM1_1L, lis_convert_time(100));			//28-->100ms,  0x04-->10ms  TIM1_H
+		WriteSpi(TIM1_1H, lis_convert_time(100));			//28-->100ms,  0x04-->10ms  TIM1_L
+		WriteSpi(THRS2_1, lis_convert_threshold(375));		//06-->100mg, 18-->375mg
+		//WriteSpi(THRS1_1, 0x06);							//06-->100mg, 18-->375mg
+		WriteSpi(MASK1_B, 0xA8);
+		WriteSpi(MASK1_A, 0xA8);
+		WriteSpi(SETT1, 0xA3);
+		WriteSpi(ST1_1, 0x0A);
+		WriteSpi(ST1_2, 0x06);   							//61,  06
+		WriteSpi(ST1_3, 0x11);
+		WriteSpi(CTRL_REG5, 0x00);
+		WriteSpi(CTRL_REG1, 0x01);
 
-	// free-fall
-	/*WriteSpi(CTRL_REG3, 0x68);
-	WriteSpi(CTRL_REG4, 0x77); //7F
-	WriteSpi(TIM1_1L, 0x28);
-	WriteSpi(THRS2_1, 0x18);
-	WriteSpi(MASK1_B, 0xFC);
-	WriteSpi(MASK1_A, 0xFC);   //A8
-	WriteSpi(SETT1, 0x03);
-	WriteSpi(ST1_1, 0x0A);    //0A
-	WriteSpi(ST1_2, 0x61);    //61
-	WriteSpi(ST1_3, 0x11);
-	WriteSpi(CTRL_REG1, 0x01);
-	WriteSpi(CTRL_REG5, 0x00);
-	HAL_Delay(50);*/
+		ReadSpi(0x5F);										// reset interrupt flag
+	}
 
-	//wake-up
-	/*WriteSpi(CTRL_REG1, 0x01);
-	WriteSpi(CTRL_REG3, 0x48);
-	WriteSpi(CTRL_REG4, 0x67);
-	WriteSpi(CTRL_REG5, 0x00);
-	WriteSpi(0x57, 0x55);
-	WriteSpi(ST1_1, 0x05);
-	WriteSpi(ST1_2, 0x11);
-	HAL_Delay(50);*/
+
 }
 
 void WriteSpi(uint8_t addres, uint8_t data)
 {
 
-	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, DISABLE);
+	HAL_GPIO_WritePin(lis_cs_GPIO_Port, lis_cs_Pin, GPIO_PIN_RESET);
 
 	HAL_SPI_Transmit(&hspi1, &addres, 1, 100);
 
 	HAL_SPI_Transmit(&hspi1, &data, 1, 100);
 
-	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, ENABLE);
+	HAL_GPIO_WritePin(lis_cs_GPIO_Port, lis_cs_Pin, GPIO_PIN_SET);
 
 }
 
@@ -666,22 +654,25 @@ uint8_t ReadSpi(uint8_t addres)
 
 	uint8_t buffer;
 
-	if(flag_control == 1)
+	if(HAL_SPI_GetState(&hspi1) == HAL_SPI_STATE_READY)
 	{
-		addres = addres;
+		if(flag_control == 1)
+		{
+			addres = addres;
+		}
+		else if (flag_control == 0)
+		{
+			addres = addres | 0x80;		// addresin basina 1 yazarak okuma yapcagimizi soyluyoruz
+		}
+
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
+
+		HAL_SPI_Transmit(&hspi1, &addres, 1, 100);
+
+		HAL_SPI_Receive(&hspi1, &buffer, 1, 100);
+
+		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
 	}
-	else if (flag_control == 0)
-	{
-		addres = addres | 0x80;		// addresin basina 1 yazarak okuma yapcagimizi soyluyoruz
-	}
-
-	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
-
-	HAL_SPI_Transmit(&hspi1, &addres, 1, 100);
-
-	HAL_SPI_Receive(&hspi1, &buffer, 1, 100);
-
-	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
 
 	return buffer;
 
@@ -788,6 +779,40 @@ void Read_all(void)
 		   f_close(&file_pointer);
 	  }
 
+}
+
+
+uint8_t lis_convert_time(float miliseconds)
+{
+	// 1 LSB = 1/ODR = 1/400 Hz
+	// The minimum duration (in milliseconds) of subthreshold accelerations for recognize a free-fall condition.
+	// Allowed range [2,5 - 637,5]ms.
+
+	float var = miliseconds / (2.5);
+	int byte = (int)var;
+	if(byte < 0)
+		return 0;
+	else if(byte > 255)
+		return 255;
+	else
+		return (uint8_t)byte;
+}
+
+uint8_t lis_convert_threshold(float miliG)
+{
+	// 1 LSB = 2g/(2^7)
+	// The maximum acceleration (in milli-g) that is recognized as free-fall condition.
+	// The lower is the threshold, more accurate is the recognition.
+	// Allowed range [15,625 - 3984]mg.
+
+	float var = miliG / (15.625);
+	int byte = (int)var;
+	if(byte < 0)
+		return 0;
+	else if(byte > 255)
+		return 255;
+	else
+		return (uint8_t)byte;
 }
 
 
