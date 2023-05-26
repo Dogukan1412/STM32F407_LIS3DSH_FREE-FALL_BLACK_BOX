@@ -129,6 +129,9 @@ uint8_t ReadSpi(uint8_t addres);
 void Read_all(void);
 uint8_t lis_convert_time(float miliseconds);
 uint8_t lis_convert_threshold(float miliG);
+void SD_Init(void);
+void SD_Write(void);
+void Read_RTC(void);
 
 /* USER CODE END PFP */
 
@@ -180,48 +183,7 @@ int main(void)
   BMP180_Start();
   HAL_Delay(40);
 
-
-
-  result = f_mount(&fatfs, "", 0);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
-  if(result != FR_OK)
-  {
-	  while(1);
-  }
-
-  result = f_open(&file_pointer, "DATA.txt", FA_OPEN_APPEND);
-  if(result == FR_OK)
-  {
-
-
-    if(result == FR_OK) __NOP();
-    else __NOP();
-   }
-   else
-   {
-     __NOP();
-    }
-   f_close(&file_pointer);
-
-
-   result = f_mount(&fatfs, "", 0);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
-   if(result != FR_OK)
-   {
- 	  while(1);
-   }
-
-   result = f_open(&file_pointer, "CRASH.txt", FA_OPEN_APPEND);
-   if(result == FR_OK)
-   {
-
-
-     if(result == FR_OK) __NOP();
-     else __NOP();
-    }
-    else
-    {
-      __NOP();
-     }
-    f_close(&file_pointer);
+  SD_Init();
 
   /* USER CODE END 2 */
 
@@ -693,18 +655,93 @@ void Read_all(void)
 
 	  Altitude = BMP180_GetAlt(0);
 
+	  Read_RTC();
 
-	  HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-	  HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+	  SD_Write();
 
-	  time_second = sTime.Seconds;
-	  time_minute = sTime.Minutes;
-	  time_hour = sTime.Hours;
-	  date_week = sDate.WeekDay;
-	  date_month = sDate.Month;
-	  date_year = sDate.Year;
+}
 
 
+uint8_t lis_convert_time(float miliseconds)
+{
+	// 1 LSB = 1/ODR = 1/400 Hz
+	// The minimum duration (in milliseconds) of subthreshold accelerations for recognize a free-fall condition.
+	// Allowed range [2,5 - 637,5]ms.
+
+	float var = miliseconds / (2.5);
+	int byte = (int)var;
+	if(byte < 0)
+		return 0;
+	else if(byte > 255)
+		return 255;
+	else
+		return (uint8_t)byte;
+}
+
+uint8_t lis_convert_threshold(float miliG)
+{
+	// 1 LSB = 2g/(2^7)
+	// The maximum acceleration (in milli-g) that is recognized as free-fall condition.
+	// The lower is the threshold, more accurate is the recognition.
+	// Allowed range [15,625 - 3984]mg.
+
+	float var = miliG / (15.625);
+	int byte = (int)var;
+	if(byte < 0)
+		return 0;
+	else if(byte > 255)
+		return 255;
+	else
+		return (uint8_t)byte;
+}
+
+void SD_Init()
+{
+	  result = f_mount(&fatfs, "", 0);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
+	  if(result != FR_OK)
+	  {
+		  while(1);
+	  }
+
+	  result = f_open(&file_pointer, "DATA.txt", FA_OPEN_APPEND);
+	  if(result == FR_OK)
+	  {
+
+
+	    if(result == FR_OK) __NOP();
+	    else __NOP();
+	   }
+	   else
+	   {
+	     __NOP();
+	    }
+	   f_close(&file_pointer);
+
+
+	   result = f_mount(&fatfs, "", 0);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
+	   if(result != FR_OK)
+	   {
+	 	  while(1);
+	   }
+
+	   result = f_open(&file_pointer, "CRASH.txt", FA_OPEN_APPEND);
+	   if(result == FR_OK)
+	   {
+
+
+	     if(result == FR_OK) __NOP();
+	     else __NOP();
+	    }
+	    else
+	    {
+	      __NOP();
+	     }
+	    f_close(&file_pointer);
+}
+
+
+void SD_Write()
+{
 	  if(crash_flag == 1)
 	  {
 		  result = f_open(&file_pointer, "CRASH.txt", FA_OPEN_APPEND | FA_WRITE);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
@@ -778,41 +815,20 @@ void Read_all(void)
 		   HAL_Delay(20);
 		   f_close(&file_pointer);
 	  }
-
 }
 
 
-uint8_t lis_convert_time(float miliseconds)
+void Read_RTC()
 {
-	// 1 LSB = 1/ODR = 1/400 Hz
-	// The minimum duration (in milliseconds) of subthreshold accelerations for recognize a free-fall condition.
-	// Allowed range [2,5 - 637,5]ms.
+	  HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+	  HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 
-	float var = miliseconds / (2.5);
-	int byte = (int)var;
-	if(byte < 0)
-		return 0;
-	else if(byte > 255)
-		return 255;
-	else
-		return (uint8_t)byte;
-}
-
-uint8_t lis_convert_threshold(float miliG)
-{
-	// 1 LSB = 2g/(2^7)
-	// The maximum acceleration (in milli-g) that is recognized as free-fall condition.
-	// The lower is the threshold, more accurate is the recognition.
-	// Allowed range [15,625 - 3984]mg.
-
-	float var = miliG / (15.625);
-	int byte = (int)var;
-	if(byte < 0)
-		return 0;
-	else if(byte > 255)
-		return 255;
-	else
-		return (uint8_t)byte;
+	  time_second = sTime.Seconds;
+	  time_minute = sTime.Minutes;
+	  time_hour = sTime.Hours;
+	  date_week = sDate.WeekDay;
+	  date_month = sDate.Month;
+	  date_year = sDate.Year;
 }
 
 
