@@ -202,7 +202,7 @@ int main(void)
 
 	  timer_count = TIM2->CNT;
 
-	  if(flag_control == 1 && timer_flag == 1)
+	  if(flag_control >= 1 && timer_flag == 1)
 	  {
 		  __HAL_TIM_DISABLE_IT(&htim2, TIM_IT_UPDATE);
 		  crash_flag = 1;
@@ -539,7 +539,7 @@ static void MX_GPIO_Init(void)
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
 
@@ -564,7 +564,7 @@ void EXTI0_IRQHandler(void)
 void EXTI1_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI1_IRQn 0 */
-	  flag_control = 1;
+	  flag_control = 2;
 	  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_15, GPIO_PIN_SET);
 
   /* USER CODE END EXTI1_IRQn 0 */
@@ -611,7 +611,7 @@ void lis_init(void)
 		WriteSpi(CTRL_REG2, 0x09);
 		WriteSpi(CTRL_REG4, 0x77);
 		WriteSpi(CTRL_REG3, 0x78);
-		WriteSpi(CTRL_REG5, 0x10);
+		WriteSpi(CTRL_REG5, 0x08);
 
 		//FREE-FALL CONFIG
 		WriteSpi(TIM1_1L, lis_convert_time(200));
@@ -627,6 +627,8 @@ void lis_init(void)
 
 		//WAKE-UP CONFIG
 		WriteSpi(THRS1_2, lis_convert_threshold(3500));
+		WriteSpi(MASK2_B, 0xA8);
+		WriteSpi(MASK2_A, 0xA8);
 		WriteSpi(SETT2, 0xA3);
 		WriteSpi(ST2_1, 0x05);
 		WriteSpi(ST2_2, 0x11);
