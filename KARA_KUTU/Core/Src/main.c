@@ -44,10 +44,14 @@
 #define CTRL_REG4		(0x20)
 #define CTRL_REG5		(0x24)
 #define CTRL_REG6		(0x25)
-#define TIM1_1L			(0x55)
-#define TIM1_1H			(0x54)
-#define TIM1_2H			(0x74)
-#define TIM1_2L			(0x75)
+#define TIM1_1H			(0x55)
+#define TIM1_1L			(0x54)
+#define TIM1_2L			(0x74)
+#define TIM1_2H			(0x75)
+#define TIM2_2H			(0x73)
+#define TIM2_2L			(0x72)
+#define TIM2_1H			(0x53)
+#define TIM2_1L			(0x52)
 #define THRS2_1			(0x56)
 #define THRS1_1			(0x57)
 #define THRS2_2			(0x76)
@@ -64,6 +68,7 @@
 #define ST2_1			(0x60)
 #define ST2_2			(0x61)
 #define ST2_3			(0x62)
+#define ST2_4			(0x63)
 #define x_address		(0x29)
 #define y_address		(0x2B)
 #define z_address		(0x2D)
@@ -76,7 +81,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
- I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
 
@@ -199,7 +204,7 @@ int main(void)
 
 	  if(flag_control == 1 && timer_flag == 1)
 	  {
-		  //__HAL_TIM_DISABLE_IT(&htim2, TIM_IT_UPDATE);
+		  __HAL_TIM_DISABLE_IT(&htim2, TIM_IT_UPDATE);
 		  crash_flag = 1;
 		  Read_all();
 		  HAL_Delay(30);
@@ -207,7 +212,7 @@ int main(void)
 	  }
 	  else
 	  {
-		  if(count_interrupt == 5)
+		  if(count_interrupt == 3)
 		  {
 			  Read_all();
 			  count_interrupt = 0;
@@ -495,6 +500,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(lis_cs_GPIO_Port, lis_cs_Pin, GPIO_PIN_RESET);
@@ -516,8 +522,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(sd_cs_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PD12 PD15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
   /*Configure GPIO pins : PE0 PE1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
@@ -525,6 +538,9 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
 
 }
@@ -536,7 +552,7 @@ void EXTI0_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI0_IRQn 0 */
 	  flag_control = 1;
-
+	  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
   /* USER CODE END EXTI0_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
   /* USER CODE BEGIN EXTI0_IRQn 1 */
@@ -544,6 +560,21 @@ void EXTI0_IRQHandler(void)
 
   /* USER CODE END EXTI0_IRQn 1 */
 }
+
+void EXTI1_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI1_IRQn 0 */
+	  flag_control = 1;
+	  HAL_GPIO_WritePin(GPIOD,GPIO_PIN_15, GPIO_PIN_SET);
+
+  /* USER CODE END EXTI1_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
+  /* USER CODE BEGIN EXTI1_IRQn 1 */
+
+
+  /* USER CODE END EXTI1_IRQn 1 */
+}
+
 
 /**
   * @brief This function handles TIM2 global interrupt.
@@ -573,23 +604,33 @@ void lis_init(void)
 
 
 	HAL_Delay(50);
+
 	if(ReadSpi(WHO_AM_I) == 0x3F)
 	{
-		//FREE-FALL CONFIG
+		WriteSpi(CTRL_REG1, 0x01);
+		WriteSpi(CTRL_REG2, 0x09);
 		WriteSpi(CTRL_REG4, 0x77);
-		WriteSpi(CTRL_REG3, 0x78);							//48
-		WriteSpi(TIM1_1L, lis_convert_time(100));			//28-->100ms,  0x04-->10ms  TIM1_H
-		WriteSpi(TIM1_1H, lis_convert_time(100));			//28-->100ms,  0x04-->10ms  TIM1_L
-		WriteSpi(THRS2_1, lis_convert_threshold(375));		//06-->100mg, 18-->375mg
-		//WriteSpi(THRS1_1, 0x06);							//06-->100mg, 18-->375mg
+		WriteSpi(CTRL_REG3, 0x78);
+		WriteSpi(CTRL_REG5, 0x10);
+
+		//FREE-FALL CONFIG
+		WriteSpi(TIM1_1L, lis_convert_time(200));
+		WriteSpi(TIM1_1H, lis_convert_time(0));
+		WriteSpi(THRS2_1, lis_convert_threshold(100));
 		WriteSpi(MASK1_B, 0xA8);
 		WriteSpi(MASK1_A, 0xA8);
 		WriteSpi(SETT1, 0xA3);
 		WriteSpi(ST1_1, 0x0A);
-		WriteSpi(ST1_2, 0x06);   							//61,  06
+		WriteSpi(ST1_2, 0x61);
 		WriteSpi(ST1_3, 0x11);
-		WriteSpi(CTRL_REG5, 0x00);
-		WriteSpi(CTRL_REG1, 0x01);
+
+
+		//WAKE-UP CONFIG
+		WriteSpi(THRS1_2, lis_convert_threshold(3500));
+		WriteSpi(SETT2, 0xA3);
+		WriteSpi(ST2_1, 0x05);
+		WriteSpi(ST2_2, 0x11);
+
 
 		ReadSpi(0x5F);										// reset interrupt flag
 	}
@@ -684,8 +725,8 @@ uint8_t lis_convert_threshold(float miliG)
 	// The maximum acceleration (in milli-g) that is recognized as free-fall condition.
 	// The lower is the threshold, more accurate is the recognition.
 	// Allowed range [15,625 - 3984]mg.
-
-	float var = miliG / (15.625);
+	// we use 4g//(2^7) --> 31.25
+	float var = miliG / (31.25);
 	int byte = (int)var;
 	if(byte < 0)
 		return 0;
