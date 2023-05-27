@@ -597,44 +597,45 @@ void TIM2_IRQHandler(void)
 void lis_init(void)
 {
 
-	if(ReadSpi(WHO_AM_I) == 0x3F)
+	if(ReadSpi(WHO_AM_I) == 0x3F)								// sensorle haberlesme olup olmadigi kontrol ediliyor
 	{
-		ReadSpi(0x5F);		// interrupt sıfırlama
+		ReadSpi(0x5F);									// kesme bayragini temizliyoruz
 	}
 
 
 	HAL_Delay(50);
 
-	if(ReadSpi(WHO_AM_I) == 0x3F)
+	if(ReadSpi(WHO_AM_I) == 0x3F)								// sensorle haberlesme olup olmadigi kontrol ediliyor
 	{
-		WriteSpi(CTRL_REG1, 0x01);
-		WriteSpi(CTRL_REG2, 0x09);
-		WriteSpi(CTRL_REG4, 0x77);
-		WriteSpi(CTRL_REG3, 0x78);
-		WriteSpi(CTRL_REG5, 0x08);
+		WriteSpi(CTRL_REG1, 0x01);							// Durum Makinesi 1 aktif
+		WriteSpi(CTRL_REG2, 0x09);							// Durum Makinesi 2 aktif, INT2 bacagi aktif
+		WriteSpi(CTRL_REG4, 0x77);							// Veri cikis araliği 400Hz, X,Y ve Z ekseni aktif
+		WriteSpi(CTRL_REG3, 0x78);							// Interrupt 1 ve Interrupt 2 aktif
+		WriteSpi(CTRL_REG5, 0x08);							// Tam tarama secimi +/- 4G, full duplex
+
 
 		//FREE-FALL CONFIG
-		WriteSpi(TIM1_1L, lis_convert_time(200));
+		WriteSpi(TIM1_1L, lis_convert_time(200));					// Sifirlama icin Timer1 degeri (16bit --> TIM_1H & TIM_1L)
 		WriteSpi(TIM1_1H, lis_convert_time(0));
-		WriteSpi(THRS2_1, lis_convert_threshold(100));
-		WriteSpi(MASK1_B, 0xA8);
-		WriteSpi(MASK1_A, 0xA8);
-		WriteSpi(SETT1, 0xA3);
-		WriteSpi(ST1_1, 0x0A);
-		WriteSpi(ST1_2, 0x61);
-		WriteSpi(ST1_3, 0x11);
+		WriteSpi(THRS2_1, lis_convert_threshold(100));					// SM1 icin Esik degeri
+		WriteSpi(MASK1_B, 0xA8);							// X,Y ve Z eksenleri pozitif maskeleme aktif
+		WriteSpi(MASK1_A, 0xA8);							// X,Y ve Z eksenleri pozitif maskeleme aktif
+		WriteSpi(SETT1, 0xA3);								// SM1 tepe algilama, stop ve cont komutlari kullanimi aktif
+		WriteSpi(ST1_1, 0x0A);								// Tum eksenler THRS2'den kucuk yada esitse bir sonraki duruma gec
+		WriteSpi(ST1_2, 0x61);								// Timer1 in icindeki degerden assagi say ve sayma esnasinda herhangi bir eksen THRS2'den buyukse kesme olustur
+		WriteSpi(ST1_3, 0x11);								// Reset durumdan calismaya devam et
 
 
 		//WAKE-UP CONFIG
-		WriteSpi(THRS1_2, lis_convert_threshold(3500));
-		WriteSpi(MASK2_B, 0xA8);
-		WriteSpi(MASK2_A, 0xA8);
-		WriteSpi(SETT2, 0xA3);
-		WriteSpi(ST2_1, 0x05);
-		WriteSpi(ST2_2, 0x11);
+		WriteSpi(THRS1_2, lis_convert_threshold(3500));					// SM2 icin Esik degeri
+		WriteSpi(MASK2_B, 0xA8);							// X,Y ve Z eksenleri pozitif maskeleme aktif
+		WriteSpi(MASK2_A, 0xA8);							// X,Y ve Z eksenleri pozitif maskeleme aktif
+		WriteSpi(SETT2, 0xA3);								// SM2 tepe algilama, stop ve cont komutlari kullanimi aktif
+		WriteSpi(ST2_1, 0x05);								// Tum eksenler THRS1'den kucuk yada esitse bir sonraki duruma gec
+		WriteSpi(ST2_2, 0x11);								// Reset durumdan calismaya devam et
 
 
-		ReadSpi(0x5F);										// reset interrupt flag
+		ReadSpi(0x5F);									// kesme bayragini temizliyoruz
 	}
 
 
