@@ -670,7 +670,7 @@ uint8_t ReadSpi(uint8_t addres)
 		}
 		else if (flag_control == 0)
 		{
-			addres = addres | 0x80;		// addresin basina 1 yazarak okuma yapcagimizi soyluyoruz
+			addres = addres | 0x80;							// addresin basina 1 yazarak okuma yapcagimizi soyluyoruz
 		}
 
 		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
@@ -743,7 +743,7 @@ uint8_t lis_convert_threshold(float miliG)
 
 void SD_Init()
 {
-	  result = f_mount(&fatfs, "", 0);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
+	  result = f_mount(&fatfs, "", 0);			
 	  if(result != FR_OK)
 	  {
 		  while(1);
@@ -764,7 +764,7 @@ void SD_Init()
 	   f_close(&file_pointer);
 
 
-	   result = f_mount(&fatfs, "", 0);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
+	   result = f_mount(&fatfs, "", 0);			
 	   if(result != FR_OK)
 	   {
 	 	  while(1);
@@ -790,7 +790,7 @@ void SD_Write()
 {
 	  if(crash_flag == 1)
 	  {
-		  result = f_open(&file_pointer, "CRASH.txt", FA_OPEN_APPEND | FA_WRITE);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
+		  result = f_open(&file_pointer, "CRASH.txt", FA_OPEN_APPEND | FA_WRITE);			
 		  //result = f_open(&file_pointer, "CRASH.txt", FA_CREATE_ALWAYS | FA_WRITE);
 		  if(result == FR_OK)
 		  {
@@ -828,7 +828,7 @@ void SD_Write()
 
 	  else
 	  {
-		  result = f_open(&file_pointer, "DATA.txt", FA_OPEN_APPEND | FA_WRITE);			// Bu kısmı her seferinde bi önceki verileri silip yeniden dosya acmak icin kullanıyoruz
+		  result = f_open(&file_pointer, "DATA.txt", FA_OPEN_APPEND | FA_WRITE);			
 		  //result = f_open(&file_pointer, "DATA.txt", FA_CREATE_ALWAYS | FA_WRITE);
 		  if(result == FR_OK)
 		  {
