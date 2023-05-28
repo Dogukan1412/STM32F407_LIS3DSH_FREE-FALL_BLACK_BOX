@@ -599,7 +599,8 @@ void lis_init(void)
 
 	if(ReadSpi(WHO_AM_I) == 0x3F)								// sensorle haberlesme olup olmadigi kontrol ediliyor
 	{
-		ReadSpi(0x5F);									// kesme bayragini temizliyoruz
+		ReadSpi(0x5F);									// SM1 kesme bayragini temizliyoruz
+		ReadSpi(0x7F);									// SM2 kesme bayragini temizliyoruz
 	}
 
 
@@ -635,7 +636,8 @@ void lis_init(void)
 		WriteSpi(ST2_2, 0x11);								// Reset durumdan calismaya devam et
 
 
-		ReadSpi(0x5F);									// kesme bayragini temizliyoruz
+		ReadSpi(0x5F);									// SM1 kesme bayragini temizliyoruz
+		ReadSpi(0x7F);									// SM2 kesme bayragini temizliyoruz
 	}
 
 
